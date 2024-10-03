@@ -93,7 +93,7 @@ def validate_chairs(model, iters=24):
 
 
 @torch.no_grad()
-def validate_sintel(model, iters=32):
+def validate_sintel(model: RAFT, iters=32):
     """ Peform validation using the Sintel (train) split """
     model.eval()
     results = {}
@@ -176,7 +176,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     model = torch.nn.DataParallel(RAFT(args))
-    model.load_state_dict(torch.load(args.model))
+    model.load_state_dict(torch.load(args.model, weights_only=True))
 
     model.cuda()
     model.eval()

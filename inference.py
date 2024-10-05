@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import sys
 sys.path.append('core')
+from pathlib import Path
 
 import argparse
 import numpy as np
@@ -25,24 +28,36 @@ def get_cpu_model(model):
         new_model[new_name] = model[name]
     return new_model
 
-def vizualize_flow(img: torch.Tensor, flo, save, counter):
+
+def vizualize_flow(img: torch.Tensor, flo, video_path: Path, counter) -> np.ndarray:
     # convert CHW (used by model) to HWC (used by cv2) format and change device if necessary  
     img_hwc = img[0].permute(1, 2, 0).cpu().numpy()
     flo_hwc = flo[0].permute(1, 2, 0).cpu().numpy()
 
-    # map flow to rgb image
-    flo_img = flow_viz.flow_to_image(flo_hwc)
-    flo_img = cv2.cvtColor(flo_img, cv2.COLOR_RGB2BGR)
+    # map flow to BGR image
+    flo_img = flow_viz.flow_to_image(flo_hwc, convert_to_bgr=True)
+    # flo_img = cv2.cvtColor(flo_img, cv2.COLOR_RGB2BGR)
  
-    if save:
-        # concatenate, save and show images
-        concat = np.concatenate([img_hwc, flo_img], axis=0)
-        outfile = f"output/infer_frame_{str(counter)}.jpg"
-        cv2.imwrite(outfile, concat)
-        # cv2.imshow("Optical Flow", flo_img / 255.0)
-        print(f"Image saved to {outfile}")
-    else:
-        cv2.imshow("Optical Flow", flo_img / 255.0)
+    # concatenate, save and show images
+    concat = np.concatenate([img_hwc, flo_img], axis=0)
+    outfile = f"output/infer_frame{video_path.stem}_{str(counter)}.jpg"
+    cv2.imwrite(outfile, concat)
+    # cv2.imshow("Optical Flow", flo_img)
+    print(f"Image saved to {outfile}")
+    return concat
+
+
+def save_video(frames: list[np.ndarray], video_path: Path) -> Path:
+    h, w, _c = frames[0].shape
+    print(f"Video dimensions: {w}x{h}")
+    print(frames[0].dtype)
+    video_output = f'output/video/raft_{video_path.stem}.mp4'
+    writer = cv2.VideoWriter(video_output, cv2.VideoWriter_fourcc(*'mp4v'), 60, (w, h))
+    for frame in frames:
+        # f = np.ones((h, w, 3), dtype=np.uint8)
+        writer.write(frame.astype(np.uint8))
+    writer.release()
+    print(f"Video saved to {video_output}")
  
 
 def main():
@@ -55,9 +70,10 @@ def main():
     # parser.add_argument('--alternate_corr', action='store_true', help='use efficent correlation implementation')
     args = parser.parse_args()
 
+    video_path = Path(args.video)
+
     model = torch.nn.DataParallel(RAFT(args))
     model.load_state_dict(torch.load(args.model, weights_only=True))
-
     model.cuda()
     model.eval()
 
@@ -86,8 +102,9 @@ def main():
 
     with torch.no_grad():
         counter = 1
-        cap = cv2.VideoCapture(args.video)
+        cap = cv2.VideoCapture(str(video_path))
         frame_1 = None
+        result_frames = []
         
         while True:
             ret, raw_frame = cap.read()
@@ -98,17 +115,23 @@ def main():
                 break
             
             frame_2 = preprocess(raw_frame)
+            if frame_1 is None:
+                frame_1 = frame_2
+                counter += 1
+                continue
     
-            if frame_1 is not None:
-                # predict the flow
-                _flow_diff, flow_up = model.module(frame_1, frame_2, iters=20, test_mode=True)
-                if counter %10 == 0:
-                    _ret = vizualize_flow(frame_2, flow_up, save=True, counter=counter)
+            # predict the flow
+            _flow_diff, flow_up = model.module(frame_1, frame_2, iters=20, test_mode=True)
+            combine_frame = vizualize_flow(frame_2, flow_up, video_path=video_path, counter=counter)
+            result_frames.append(combine_frame)
             
             frame_1 = frame_2
             counter += 1
 
         cap.release()
+        cv2.destroyAllWindows()
+
+        save_video(result_frames, video_path)
 
 
 if __name__ == "__main__":

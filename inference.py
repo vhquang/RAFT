@@ -41,20 +41,23 @@ def vizualize_flow(img: torch.Tensor, flo, video_path: Path, counter) -> np.ndar
     # concatenate, save and show images
     concat = np.concatenate([img_hwc, flo_img], axis=0)
     outfile = f"output/infer_frame{video_path.stem}_{str(counter)}.jpg"
-    cv2.imwrite(outfile, concat)
+    # cv2.imwrite(outfile, concat)
     # cv2.imshow("Optical Flow", flo_img)
-    print(f"Image saved to {outfile}")
+    # print(f"Image saved to {outfile}")
     return concat
 
 
 def save_video(frames: list[np.ndarray], video_path: Path) -> Path:
+    cap = cv2.VideoCapture(video_path)
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    cap.release()
+
     h, w, _c = frames[0].shape
-    print(f"Video dimensions: {w}x{h}")
-    print(frames[0].dtype)
+    print(f"Video dimensions: {w}x{h}, {fps} fps")
+
     video_output = f'output/video/raft_{video_path.stem}.mp4'
-    writer = cv2.VideoWriter(video_output, cv2.VideoWriter_fourcc(*'mp4v'), 60, (w, h))
+    writer = cv2.VideoWriter(video_output, cv2.VideoWriter_fourcc(*'mp4v'), fps, (w, h))
     for frame in frames:
-        # f = np.ones((h, w, 3), dtype=np.uint8)
         writer.write(frame.astype(np.uint8))
     writer.release()
     print(f"Video saved to {video_output}")
@@ -121,12 +124,16 @@ def main():
                 continue
     
             # predict the flow
-            _flow_diff, flow_up = model.module(frame_1, frame_2, iters=20, test_mode=True)
-            combine_frame = vizualize_flow(frame_2, flow_up, video_path=video_path, counter=counter)
+            _flow_diff, flow_upsample = model.module(frame_1, frame_2, iters=2, test_mode=True)
+            combine_frame = vizualize_flow(frame_2, flow_upsample, video_path=video_path, counter=counter)
             result_frames.append(combine_frame)
             
             frame_1 = frame_2
             counter += 1
+            print(f"Processed frame {counter}")
+
+            # if counter == 5:
+            #     break
 
         cap.release()
         cv2.destroyAllWindows()

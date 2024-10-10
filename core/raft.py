@@ -1,3 +1,5 @@
+from functools import partial
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -9,7 +11,8 @@ from corr import CorrBlock, AlternateCorrBlock
 from utils.utils import bilinear_sampler, coords_grid, upflow8
 
 try:
-    autocast = torch.cuda.amp.autocast
+    # autocast = torch.cuda.amp.autocast
+    autocast = partial(torch.amp.autocast, device_type='cuda')
 except:
     # dummy autocast for PyTorch < 1.6
     class autocast:
@@ -83,9 +86,10 @@ class RAFT(nn.Module):
         return up_flow.reshape(N, 2, 8*H, 8*W)
 
 
-    def forward(self, image1, image2, iters=12, flow_init=None, upsample=True, test_mode=False):
+    def forward(self, image1: torch.Tensor, image2: torch.Tensor, iters=12, flow_init=None, upsample=True, test_mode=False):
         """ Estimate optical flow between pair of frames """
 
+        # Normalize the image from [0, 255] to [-1, 1]
         image1 = 2 * (image1 / 255.0) - 1.0
         image2 = 2 * (image2 / 255.0) - 1.0
 

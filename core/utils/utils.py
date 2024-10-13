@@ -71,9 +71,12 @@ def bilinear_sampler(img, coords, mode='bilinear', mask=False):
     return img
 
 
-def coords_grid(batch, ht, wd, device):
-    coords = torch.meshgrid(torch.arange(ht, device=device), torch.arange(wd, device=device))
+def coords_grid(batch: int, height: int, width: int, device):
+    # Provide grid coordinates for each pixel in the image [H x W]. Return rows, columns
+    coords = torch.meshgrid(torch.arange(height, device=device), torch.arange(width, device=device))
+    # Stack the coordinates, but reverse the order to get colums, rows. (ie: tensor[0]: cor_x, tensor[1]: cor_y)
     coords = torch.stack(coords[::-1], dim=0).float()
+    # Repeat to make batch coordinates.
     return coords[None].repeat(batch, 1, 1, 1)
 
 

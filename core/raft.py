@@ -64,9 +64,12 @@ class RAFT(nn.Module):
                 m.eval()
 
     def initialize_flow(self, img):
-        """ Flow is represented as difference between two coordinate grids flow = coords1 - coords0"""
+        """
+        Flow is represented as difference between two coordinate grids flow = coords1 - coords0.
+        Grid is 1/8 of original resolution.
+        """
         N, C, H, W = img.shape
-        coords0 = coords_grid(N, H//8, W//8, device=img.device)
+        coords0 = coords_grid(N, H//8, W//8, device=img.device)  # [B, 2, H/8, W/8] 2 stacked tensors cols-rows
         coords1 = coords_grid(N, H//8, W//8, device=img.device)
 
         # optical flow computed as difference: flow = coords1 - coords0
@@ -126,8 +129,12 @@ class RAFT(nn.Module):
         for itr in range(iters):
             coords1 = coords1.detach()
             corr = corr_fn(coords1) # index correlation volume
+            # corr: [B, n-correlations, H1, W1]
 
             flow = coords1 - coords0
+            # print(corr.shape)
+            # import ipdb; ipdb.set_trace()
+
             with autocast(enabled=self.args.mixed_precision):
                 net, up_mask, delta_flow = self.update_block(net, inp, corr, flow)
 

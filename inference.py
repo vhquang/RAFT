@@ -124,7 +124,7 @@ def main():
                 continue
     
             # predict the flow
-            _flow_diff, flow_upsample = model.module(frame_1, frame_2, iters=2, test_mode=True)
+            _flow_diff, flow_upsample = model.module(frame_1, frame_2, iters=20, test_mode=True)
             combine_frame = vizualize_flow(frame_2, flow_upsample, video_path=video_path, counter=counter)
             result_frames.append(combine_frame)
             

@@ -122,17 +122,29 @@ class BasicUpdateBlock(nn.Module):
         self.mask = nn.Sequential(
             nn.Conv2d(128, 256, 3, padding=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(256, 64*9, 1, padding=0))
+            nn.Conv2d(256, 64*9, 1, padding=0),
+        )
 
     def forward(self, net, inp, corr, flow, upsample=True):
+        """
+        Args:
+            net: [B, context_dim, H, W] the context network, from previous iteration
+            inp: [B, hidden_dim, H, W] the input features
+            corr: [B, n-correlations, H, W] correlation between the features
+            flow: [B, 2, H, W] flow from previous iteration
+        Returns:
+            net: [B, context_dim, H, W] updated context network
+            mask: [B, 64*9, H, W] mask for the flow
+            delta_flow: [B, 2, H, W] flow update
+        """
         motion_features = self.encoder(flow, corr)
         inp = torch.cat([inp, motion_features], dim=1)
 
         net = self.gru(net, inp)
-        delta_flow = self.flow_head(net)
+        delta_flow = self.flow_head(net)  # [B, 2, H, W]
 
         # scale mask to balence gradients
-        mask = .25 * self.mask(net)
+        mask = .25 * self.mask(net)  # [B, 64*9, H, W]
         return net, mask, delta_flow
 
 

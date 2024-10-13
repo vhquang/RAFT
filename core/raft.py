@@ -63,7 +63,7 @@ class RAFT(nn.Module):
             if isinstance(m, nn.BatchNorm2d):
                 m.eval()
 
-    def initialize_flow(self, img):
+    def initialize_flow(self, img):  # img: [B, C, H, W] -> [B, 2, H/8, W/8] * 2
         """
         Flow is represented as difference between two coordinate grids flow = coords1 - coords0.
         Grid is 1/8 of original resolution.
@@ -117,7 +117,7 @@ class RAFT(nn.Module):
         with autocast(enabled=self.args.mixed_precision):
             cnet = self.cnet(image1)
             net, inp = torch.split(cnet, [hdim, cdim], dim=1)
-            net = torch.tanh(net)
+            net = torch.tanh(net)  # [B, context_dim, H/8, W/8]
             inp = torch.relu(inp)
 
         coords0, coords1 = self.initialize_flow(image1)
@@ -131,25 +131,23 @@ class RAFT(nn.Module):
             corr = corr_fn(coords1) # index correlation volume
             # corr: [B, n-correlations, H1, W1]
 
-            flow = coords1 - coords0
-            # print(corr.shape)
-            # import ipdb; ipdb.set_trace()
-
+            flow = coords1 - coords0  # same as coords: [B, 2, H/8, W/8]
             with autocast(enabled=self.args.mixed_precision):
                 net, up_mask, delta_flow = self.update_block(net, inp, corr, flow)
 
             # F(t+1) = F(t) + \Delta(t)
             coords1 = coords1 + delta_flow
+            flow_diff = coords1 - coords0
 
             # upsample predictions
             if up_mask is None:
-                flow_up = upflow8(coords1 - coords0)
+                flow_up = upflow8(flow_diff)
             else:
-                flow_up = self.upsample_flow(coords1 - coords0, up_mask)
+                flow_up = self.upsample_flow(flow_diff, up_mask)
             
             flow_predictions.append(flow_up)
 
         if test_mode:
-            return coords1 - coords0, flow_up
+            return flow_diff, flow_up
             
         return flow_predictions

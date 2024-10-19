@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-sys.path.append('core')
+# sys.path.append('core')
 from pathlib import Path
 
 import argparse
@@ -10,8 +10,12 @@ import numpy as np
 import cv2
 import torch
 
-from raft import RAFT
-from utils import flow_viz
+RAFT_PATH = Path.cwd()
+if str(RAFT_PATH) not in sys.path:
+    sys.path.append(str(RAFT_PATH))
+
+from core.raft import RAFT
+from core.utils import flow_viz
 
 # def inference(args):
 #     model = RAFT(args)

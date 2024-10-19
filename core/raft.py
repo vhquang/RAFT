@@ -108,10 +108,11 @@ class RAFT(nn.Module):
         
         fmap1 = fmap1.float()
         fmap2 = fmap2.float()
-        if self.args.alternate_corr:
-            corr_fn = AlternateCorrBlock(fmap1, fmap2, radius=self.args.corr_radius)
-        else:
-            corr_fn = CorrBlock(fmap1, fmap2, radius=self.args.corr_radius)
+        corr_fn = CorrBlock(fmap1, fmap2, radius=self.args.corr_radius)
+        # if self.args.alternate_corr:
+        #     corr_fn = AlternateCorrBlock(fmap1, fmap2, radius=self.args.corr_radius)
+        # else:
+        #     corr_fn = CorrBlock(fmap1, fmap2, radius=self.args.corr_radius)
 
         # run the context network
         with autocast(enabled=self.args.mixed_precision):

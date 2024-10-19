@@ -137,7 +137,7 @@ class BasicUpdateBlock(nn.Module):
             mask: [B, 64*9, H, W] mask for the flow
             delta_flow: [B, 2, H, W] flow update
         """
-        motion_features = self.encoder(flow, corr)
+        motion_features = self.encoder(flow, corr)  # [B, 128, H, W]
         inp = torch.cat([inp, motion_features], dim=1)
 
         net = self.gru(net, inp)
